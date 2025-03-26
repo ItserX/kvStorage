@@ -1,0 +1,387 @@
+
+<!DOCTYPE html>
+<html>
+	<head>
+		<meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+		<title>handlers: Go Coverage Report</title>
+		<style>
+			body {
+				background: black;
+				color: rgb(80, 80, 80);
+			}
+			body, pre, #legend span {
+				font-family: Menlo, monospace;
+				font-weight: bold;
+			}
+			#topbar {
+				background: black;
+				position: fixed;
+				top: 0; left: 0; right: 0;
+				height: 42px;
+				border-bottom: 1px solid rgb(80, 80, 80);
+			}
+			#content {
+				margin-top: 50px;
+			}
+			#nav, #legend {
+				float: left;
+				margin-left: 10px;
+			}
+			#legend {
+				margin-top: 12px;
+			}
+			#nav {
+				margin-top: 10px;
+			}
+			#legend span {
+				margin: 0 5px;
+			}
+			.cov0 { color: rgb(192, 0, 0) }
+.cov1 { color: rgb(128, 128, 128) }
+.cov2 { color: rgb(116, 140, 131) }
+.cov3 { color: rgb(104, 152, 134) }
+.cov4 { color: rgb(92, 164, 137) }
+.cov5 { color: rgb(80, 176, 140) }
+.cov6 { color: rgb(68, 188, 143) }
+.cov7 { color: rgb(56, 200, 146) }
+.cov8 { color: rgb(44, 212, 149) }
+.cov9 { color: rgb(32, 224, 152) }
+.cov10 { color: rgb(20, 236, 155) }
+
+		</style>
+	</head>
+	<body>
+		<div id="topbar">
+			<div id="nav">
+				<select id="files">
+				
+				<option value="file0">kvManager/pkg/handlers/api.go (89.5%)</option>
+				
+				<option value="file1">kvManager/pkg/handlers/utils.go (65.9%)</option>
+				
+				<option value="file2">kvManager/pkg/storage/tarantool_repo.go (92.3%)</option>
+				
+				</select>
+			</div>
+			<div id="legend">
+				<span>not tracked</span>
+			
+				<span class="cov0">not covered</span>
+				<span class="cov8">covered</span>
+			
+			</div>
+		</div>
+		<div id="content">
+		
+		<pre class="file" id="file0" style="display: none">package handlers
+
+import (
+        "encoding/json"
+        "net/http"
+
+        "github.com/gorilla/mux"
+        "go.uber.org/zap"
+
+        "kvManager/pkg/storage"
+)
+
+const (
+        ErrIncorrectBody   string = "Incorrect body"
+        ErrKeyExists       string = "Key already exists"
+        ErrInternalServer  string = "Internal server error"
+        ErrKeyIsNotAString string = "Key is not a string"
+        ErrReadReqBody     string = "Failed to read request body"
+)
+
+type DbHandler struct {
+        Repo   storage.TarantoolRepo
+        Logger *zap.SugaredLogger
+}
+
+type RequestData struct {
+        Key   string      `json:"key"`
+        Value interface{} `json:"value"`
+}
+
+type ResponseData struct {
+        Value interface{} `json:"value"`
+}
+
+func (handler *DbHandler) Add(w http.ResponseWriter, r *http.Request) <span class="cov8" title="1">{
+        handler.Logger.Infow("Add request started", "method", r.Method, "path", r.URL.Path)
+        data, ok := handler.parseReqBody(w, r)
+        if !ok </span><span class="cov8" title="1">{
+                return
+        }</span>
+
+        <span class="cov8" title="1">handler.Logger.Debugw("Try to add value", "key", data.Key, "value", data.Value)
+        err := handler.Repo.AddValue(data.Key, data.Value)
+        if err != nil </span><span class="cov8" title="1">{
+                handler.Logger.Warnw("Falied to add value", "key", data.Key, "value", data.Value,
+                        "error", err.Error(), "http_status", http.StatusConflict)
+                http.Error(w, ErrKeyExists, http.StatusConflict)
+                return
+        }</span>
+
+        <span class="cov8" title="1">handler.Logger.Infow("Value added successfully", "key", data.Key,
+                "http_status", http.StatusCreated)
+        w.WriteHeader(http.StatusCreated)</span>
+}
+
+func (handler *DbHandler) Get(w http.ResponseWriter, r *http.Request) <span class="cov8" title="1">{
+        handler.Logger.Infow("Get request started", "method", r.Method, "path", r.URL.Path)
+        routeVars := mux.Vars(r)
+        key := routeVars["id"]
+
+        handler.Logger.Debugw("Try to get value", "key", key)
+        data, err := handler.Repo.GetValue(key)
+        if handler.checkError(w, err) </span><span class="cov8" title="1">{
+                return
+        }</span>
+
+        <span class="cov8" title="1">dataValue := data[0].([]interface{})[1]
+        if _, ok := dataValue.(map[interface{}]interface{}); ok </span><span class="cov8" title="1">{
+                dataValue, err = handler.convertMap(dataValue.(map[interface{}]interface{}))
+                handler.Logger.Debugw("Try to converting map",
+                        "map", dataValue)
+                if err != nil </span><span class="cov0" title="0">{
+                        handler.Logger.Errorw("Converting map failed", "data", dataValue,
+                                "error", err.Error())
+                        http.Error(w, ErrKeyIsNotAString, http.StatusInternalServerError)
+                        return
+                }</span>
+        }
+
+        <span class="cov8" title="1">resp, err := json.Marshal(ResponseData{dataValue})
+        if err != nil </span><span class="cov0" title="0">{
+                handler.Logger.Errorw("Response marshaling failed", "key", key, "error", err.Error())
+                http.Error(w, err.Error(), http.StatusInternalServerError)
+                return
+        }</span>
+
+        <span class="cov8" title="1">handler.Logger.Infow("Get value successful", "key", key,
+                "response", string(resp), "http_status", http.StatusOK)
+        w.Header().Set("Content-Type", "application/json")
+        w.WriteHeader(http.StatusOK)
+        w.Write(resp)</span>
+}
+
+func (handler *DbHandler) Update(w http.ResponseWriter, r *http.Request) <span class="cov8" title="1">{
+        handler.Logger.Infow("Update request started", "method", r.Method, "path", r.URL.Path)
+        routeVars := mux.Vars(r)
+        key := routeVars["id"]
+
+        data, ok := handler.parseReqBody(w, r)
+        if !ok </span><span class="cov8" title="1">{
+                return
+        }</span>
+
+        <span class="cov8" title="1">handler.Logger.Debugw("Try to get value", "key", key)
+        err := handler.Repo.UpdateValue(key, data.Value)
+        if handler.checkError(w, err) </span><span class="cov8" title="1">{
+                return
+        }</span>
+
+        <span class="cov8" title="1">handler.Logger.Infow("Update value successful", "key", key, "http_status", http.StatusOK)
+        w.WriteHeader(http.StatusOK)</span>
+}
+
+func (handler *DbHandler) Delete(w http.ResponseWriter, r *http.Request) <span class="cov8" title="1">{
+        handler.Logger.Infow("Delete request started", "method", r.Method, "path", r.URL.Path)
+        routeVars := mux.Vars(r)
+        key := routeVars["id"]
+
+        handler.Logger.Debugw("Try to delete value", "key", key)
+        err := handler.Repo.DeleteValue(key)
+        if handler.checkError(w, err) </span><span class="cov8" title="1">{
+                return
+        }</span>
+
+        <span class="cov8" title="1">handler.Logger.Infow("Delete value successful", "key", key, "http_status", http.StatusNoContent)
+        w.WriteHeader(http.StatusNoContent)</span>
+}
+</pre>
+		
+		<pre class="file" id="file1" style="display: none">package handlers
+
+import (
+        "encoding/json"
+        "fmt"
+        "io"
+        "net/http"
+
+        "kvManager/pkg/storage"
+)
+
+func (handler *DbHandler) checkError(w http.ResponseWriter, err error) bool <span class="cov8" title="1">{
+        if err != nil &amp;&amp; err.Error() == storage.ErrKeyNotFound </span><span class="cov8" title="1">{
+                http.Error(w, storage.ErrKeyNotFound, http.StatusNotFound)
+                handler.Logger.Warnw("Key not found error",
+                        "http_status", http.StatusNotFound)
+                return true
+        }</span> else<span class="cov8" title="1"> if err != nil </span><span class="cov0" title="0">{
+                handler.Logger.Errorw("Internal server error",
+                        "http_status", http.StatusInternalServerError)
+                http.Error(w, err.Error(), http.StatusInternalServerError)
+                return true
+        }</span>
+        <span class="cov8" title="1">return false</span>
+}
+
+func (handler *DbHandler) convertMap(oldMap map[interface{}]interface{}) (map[string]interface{}, error) <span class="cov8" title="1">{
+        newMap := make(map[string]interface{})
+        handler.Logger.Debugw("Starting map conversion", "map_size", len(oldMap))
+        for key, val := range oldMap </span><span class="cov8" title="1">{
+                strKey, ok := key.(string)
+                if !ok </span><span class="cov0" title="0">{
+                        handler.Logger.Errorw("Map conversion failed", "error", ErrKeyIsNotAString)
+                        return nil, fmt.Errorf(ErrKeyIsNotAString)
+                }</span>
+
+                <span class="cov8" title="1">if nestedMap, ok := val.(map[interface{}]interface{}); ok </span><span class="cov0" title="0">{
+                        handler.Logger.Debugw("Converting nested map", "key", strKey)
+                        convertedNested, err := handler.convertMap(nestedMap)
+                        if err != nil </span><span class="cov0" title="0">{
+                                handler.Logger.Errorw("Nested map conversion failed",
+                                        "key", strKey,
+                                        "error", err.Error())
+                                return nil, err
+                        }</span>
+                        <span class="cov0" title="0">newMap[strKey] = convertedNested</span>
+                } else<span class="cov8" title="1"> {
+                        newMap[strKey] = val
+                }</span>
+        }
+        <span class="cov8" title="1">handler.Logger.Debugw("Map conversion completed", "converted_size", len(newMap))
+        return newMap, nil</span>
+
+}
+func (handler *DbHandler) parseReqBody(w http.ResponseWriter, r *http.Request) (*RequestData, bool) <span class="cov8" title="1">{
+        handler.Logger.Debugw("Parsing request body")
+        body, err := io.ReadAll(r.Body)
+        if err != nil </span><span class="cov0" title="0">{
+                handler.Logger.Errorw("Failed to read request body",
+                        "error", err.Error(),
+                        "http_status", http.StatusInternalServerError)
+                http.Error(w, ErrReadReqBody, http.StatusInternalServerError)
+                return nil, false
+        }</span>
+        <span class="cov8" title="1">defer r.Body.Close()
+
+        var data RequestData
+        err = json.Unmarshal(body, &amp;data)
+        if err != nil </span><span class="cov8" title="1">{
+                handler.Logger.Warnw("Failed to unmarshal request body",
+                        "error", err.Error(),
+                        "body", string(body),
+                        "http_status", http.StatusBadRequest)
+                http.Error(w, ErrIncorrectBody, http.StatusBadRequest)
+                return nil, false
+        }</span>
+        <span class="cov8" title="1">handler.Logger.Debugw("Request body parsed successfully",
+                "data_key", data.Key)
+        return &amp;data, true</span>
+}
+</pre>
+		
+		<pre class="file" id="file2" style="display: none">package storage
+
+import (
+        "fmt"
+
+        "github.com/tarantool/go-tarantool/v2"
+        "go.uber.org/zap"
+)
+
+type TarantoolRepository struct {
+        conn   *tarantool.Connection
+        logger *zap.SugaredLogger
+}
+
+func NewTarantoolRepository(conn *tarantool.Connection, logger *zap.SugaredLogger) *TarantoolRepository <span class="cov8" title="1">{
+        return &amp;TarantoolRepository{conn: conn, logger: logger}
+}</span>
+
+func (repo *TarantoolRepository) execRequest(req tarantool.Request) ([]interface{}, error) <span class="cov8" title="1">{
+        future := repo.conn.Do(req)
+        data, err := future.Get()
+        if err != nil </span><span class="cov0" title="0">{
+                repo.logger.Warnw("Duplicate key error",
+                        "error", err.Error())
+                return nil, err
+        }</span>
+
+        <span class="cov8" title="1">repo.logger.Debugw("Tarantool response data",
+                "data_length", len(data),
+                "data", fmt.Sprintf("%s", data))
+
+        if len(data) == 0 </span><span class="cov8" title="1">{
+                repo.logger.Debugw("Empty response from Tarantool", "operation", "execRequest")
+                return nil, fmt.Errorf(ErrKeyNotFound)
+        }</span>
+
+        <span class="cov8" title="1">return data, nil</span>
+}
+
+func (repo *TarantoolRepository) AddValue(key string, value interface{}) error <span class="cov8" title="1">{
+        repo.logger.Debugw("Adding value to Tarantool",
+                "key", key)
+        req := tarantool.NewInsertRequest(JsonDataSpace).Tuple([]interface{}{key, value})
+        _, err := repo.execRequest(req)
+        return err
+}</span>
+
+func (repo *TarantoolRepository) GetValue(key string) ([]interface{}, error) <span class="cov8" title="1">{
+        repo.logger.Debugw("Get value from Tarantool",
+                "key", key)
+        req := tarantool.NewSelectRequest(JsonDataSpace).Index(PrimaryIndex).Key([]interface{}{key})
+        return repo.execRequest(req)
+}</span>
+
+func (repo *TarantoolRepository) UpdateValue(key string, value interface{}) error <span class="cov8" title="1">{
+        repo.logger.Debugw("Update value in Tarantool",
+                "key", key)
+        req := tarantool.NewUpdateRequest(JsonDataSpace).Index(PrimaryIndex).Key([]interface{}{key}).Operations(tarantool.NewOperations().Assign(1, value))
+        _, err := repo.execRequest(req)
+        return err
+}</span>
+
+func (repo *TarantoolRepository) DeleteValue(key string) error <span class="cov8" title="1">{
+        repo.logger.Debugw("Delete value from Tarantool",
+                "key", key)
+        req := tarantool.NewDeleteRequest(JsonDataSpace).Index(PrimaryIndex).Key([]interface{}{key})
+        _, err := repo.execRequest(req)
+        return err
+}</span>
+</pre>
+		
+		</div>
+	</body>
+	<script>
+	(function() {
+		var files = document.getElementById('files');
+		var visible;
+		files.addEventListener('change', onChange, false);
+		function select(part) {
+			if (visible)
+				visible.style.display = 'none';
+			visible = document.getElementById(part);
+			if (!visible)
+				return;
+			files.value = part;
+			visible.style.display = 'block';
+			location.hash = part;
+		}
+		function onChange() {
+			select(files.value);
+			window.scrollTo(0, 0);
+		}
+		if (location.hash != "") {
+			select(location.hash.substr(1));
+		}
+		if (!visible) {
+			select("file0");
+		}
+	})();
+	</script>
+</html>

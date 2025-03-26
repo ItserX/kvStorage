@@ -2,7 +2,6 @@ package storage_test
 
 import (
 	"context"
-	"fmt"
 	"testing"
 	"time"
 
@@ -10,7 +9,7 @@ import (
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
 
-	"kvManager/pkg/storage"
+	"kvManager/internal/storage"
 )
 
 type Case struct {
@@ -53,7 +52,7 @@ func TestTarantoolRepo(t *testing.T) {
 		{Key: "test", Value: []interface{}{1, 2, true}, Method: "Update", ExpectedError: nil},
 		{Key: "test", Method: "Get", ExpectedError: nil},
 		{Key: "test", Method: "Delete", ExpectedError: nil},
-		{Key: "test", Method: "Get", ExpectedError: fmt.Errorf(storage.ErrKeyNotFound)},
+		{Key: "test", Method: "Get", ExpectedError: storage.ErrKeyNotFound},
 	}
 
 	for _, q := range cases {

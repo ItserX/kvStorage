@@ -14,8 +14,8 @@ import (
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
 
-	"kvManager/pkg/handlers"
-	"kvManager/pkg/storage"
+	"kvManager/internal/handlers"
+	"kvManager/internal/storage"
 )
 
 type Case struct {
@@ -54,7 +54,7 @@ func TestAPIHandlers(t *testing.T) {
 	sugar := logger.Sugar()
 
 	repo := storage.NewTarantoolRepository(conn, sugar)
-	handler := handlers.DbHandler{Repo: repo, Logger: sugar}
+	handler := handlers.Handler{Repo: repo, Logger: sugar}
 
 	router := mux.NewRouter()
 	router.HandleFunc("/kv", handler.Add).Methods("POST")

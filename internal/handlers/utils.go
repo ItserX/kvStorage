@@ -6,16 +6,26 @@ import (
 	"io"
 	"net/http"
 
-	"kvManager/pkg/storage"
+	"kvManager/internal/storage"
 )
 
-func (handler *DbHandler) checkError(w http.ResponseWriter, err error) bool {
-	if err != nil && err.Error() == storage.ErrKeyNotFound {
-		http.Error(w, storage.ErrKeyNotFound, http.StatusNotFound)
+type RequestData struct {
+	Key   string `json:"key"`
+	Value any    `json:"value"`
+}
+
+type ResponseData struct {
+	Value any `json:"value"`
+}
+
+func (handler *Handler) checkError(w http.ResponseWriter, err error) bool {
+	if err != nil && storage.ErrKeyNotFound.Error() == err.Error() {
+		http.Error(w, storage.ErrKeyNotFound.Error(), http.StatusNotFound)
 		handler.Logger.Warnw("Key not found error",
 			"http_status", http.StatusNotFound)
 		return true
-	} else if err != nil {
+	}
+	if err != nil {
 		handler.Logger.Errorw("Internal server error",
 			"http_status", http.StatusInternalServerError)
 		http.Error(w, err.Error(), http.StatusInternalServerError)
@@ -24,7 +34,7 @@ func (handler *DbHandler) checkError(w http.ResponseWriter, err error) bool {
 	return false
 }
 
-func (handler *DbHandler) convertMap(oldMap map[interface{}]interface{}) (map[string]interface{}, error) {
+func (handler *Handler) convertMap(oldMap map[interface{}]interface{}) (map[string]interface{}, error) {
 	newMap := make(map[string]interface{})
 	handler.Logger.Debugw("Starting map conversion", "map_size", len(oldMap))
 	for key, val := range oldMap {
@@ -40,7 +50,7 @@ func (handler *DbHandler) convertMap(oldMap map[interface{}]interface{}) (map[st
 			if err != nil {
 				handler.Logger.Errorw("Nested map conversion failed",
 					"key", strKey,
-					"error", err.Error())
+					"error", err)
 				return nil, err
 			}
 			newMap[strKey] = convertedNested
@@ -52,12 +62,12 @@ func (handler *DbHandler) convertMap(oldMap map[interface{}]interface{}) (map[st
 	return newMap, nil
 
 }
-func (handler *DbHandler) parseReqBody(w http.ResponseWriter, r *http.Request) (*RequestData, bool) {
+func (handler *Handler) parseReqBody(w http.ResponseWriter, r *http.Request) (*RequestData, bool) {
 	handler.Logger.Debugw("Parsing request body")
 	body, err := io.ReadAll(r.Body)
 	if err != nil {
 		handler.Logger.Errorw("Failed to read request body",
-			"error", err.Error(),
+			"error", err,
 			"http_status", http.StatusInternalServerError)
 		http.Error(w, ErrReadReqBody, http.StatusInternalServerError)
 		return nil, false
@@ -68,7 +78,7 @@ func (handler *DbHandler) parseReqBody(w http.ResponseWriter, r *http.Request) (
 	err = json.Unmarshal(body, &data)
 	if err != nil {
 		handler.Logger.Warnw("Failed to unmarshal request body",
-			"error", err.Error(),
+			"error", err,
 			"body", string(body),
 			"http_status", http.StatusBadRequest)
 		http.Error(w, ErrIncorrectBody, http.StatusBadRequest)

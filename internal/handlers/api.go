@@ -7,32 +7,15 @@ import (
 	"github.com/gorilla/mux"
 	"go.uber.org/zap"
 
-	"kvManager/pkg/storage"
+	"kvManager/internal/storage"
 )
 
-const (
-	ErrIncorrectBody   string = "Incorrect body"
-	ErrKeyExists       string = "Key already exists"
-	ErrInternalServer  string = "Internal server error"
-	ErrKeyIsNotAString string = "Key is not a string"
-	ErrReadReqBody     string = "Failed to read request body"
-)
-
-type DbHandler struct {
+type Handler struct {
 	Repo   storage.TarantoolRepo
 	Logger *zap.SugaredLogger
 }
 
-type RequestData struct {
-	Key   string      `json:"key"`
-	Value interface{} `json:"value"`
-}
-
-type ResponseData struct {
-	Value interface{} `json:"value"`
-}
-
-func (handler *DbHandler) Add(w http.ResponseWriter, r *http.Request) {
+func (handler *Handler) Add(w http.ResponseWriter, r *http.Request) {
 	handler.Logger.Infow("Add request started", "method", r.Method, "path", r.URL.Path)
 	data, ok := handler.parseReqBody(w, r)
 	if !ok {
@@ -53,7 +36,7 @@ func (handler *DbHandler) Add(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusCreated)
 }
 
-func (handler *DbHandler) Get(w http.ResponseWriter, r *http.Request) {
+func (handler *Handler) Get(w http.ResponseWriter, r *http.Request) {
 	handler.Logger.Infow("Get request started", "method", r.Method, "path", r.URL.Path)
 	routeVars := mux.Vars(r)
 	key := routeVars["id"]
@@ -94,7 +77,7 @@ func (handler *DbHandler) Get(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-func (handler *DbHandler) Update(w http.ResponseWriter, r *http.Request) {
+func (handler *Handler) Update(w http.ResponseWriter, r *http.Request) {
 	handler.Logger.Infow("Update request started", "method", r.Method, "path", r.URL.Path)
 	routeVars := mux.Vars(r)
 	key := routeVars["id"]
@@ -114,7 +97,7 @@ func (handler *DbHandler) Update(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusOK)
 }
 
-func (handler *DbHandler) Delete(w http.ResponseWriter, r *http.Request) {
+func (handler *Handler) Delete(w http.ResponseWriter, r *http.Request) {
 	handler.Logger.Infow("Delete request started", "method", r.Method, "path", r.URL.Path)
 	routeVars := mux.Vars(r)
 	key := routeVars["id"]

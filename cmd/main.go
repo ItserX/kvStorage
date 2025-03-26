@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"fmt"
 	"net/http"
 	"time"
 
@@ -10,8 +11,8 @@ import (
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
 
-	"kvManager/pkg/handlers"
-	"kvManager/pkg/storage"
+	"kvManager/internal/handlers"
+	"kvManager/internal/storage"
 )
 
 func connectToTarantool(addr string, user string, logger *zap.SugaredLogger) (*tarantool.Connection, error) {
@@ -34,6 +35,7 @@ func connectToTarantool(addr string, user string, logger *zap.SugaredLogger) (*t
 		logger.Errorw("Failed to connect to Tarantool", "error", err, "address", addr)
 		return nil, err
 	}
+	defer conn.Close()
 
 	logger.Info("Successfully connected to Tarantool")
 	return conn, nil
@@ -43,7 +45,7 @@ func setupRouter(conn *tarantool.Connection, logger *zap.SugaredLogger) *mux.Rou
 	logger.Info("Setting up router and initializing storage")
 
 	st := storage.NewTarantoolRepository(conn, logger)
-	h := handlers.DbHandler{Repo: st, Logger: logger}
+	h := handlers.Handler{Repo: st, Logger: logger}
 
 	r := mux.NewRouter()
 	r.HandleFunc("/kv", h.Add).Methods("POST")
@@ -65,7 +67,6 @@ func setupLogger() (*zap.SugaredLogger, error) {
 	if err != nil {
 		return nil, err
 	}
-	defer logger.Sync()
 
 	sugar := logger.Sugar()
 
@@ -75,11 +76,12 @@ func setupLogger() (*zap.SugaredLogger, error) {
 func main() {
 	logger, err := setupLogger()
 	if err != nil {
-		panic("failed to initialize logger: " + err.Error())
+		fmt.Printf("failed to initialize logger: %v", err)
+		return
 	}
 
 	logger.Info("Starting app")
-	conn, err := connectToTarantool(":3301", "guest", logger)
+	conn, err := connectToTarantool("tarantool:3301", "guest", logger)
 	if err != nil {
 		return
 	}
@@ -89,6 +91,7 @@ func main() {
 	logger.Infow("Starting HTTP server", "address", ":8080")
 	err = http.ListenAndServe(":8080", r)
 	if err != nil {
-		logger.Fatalw("HTTP server error", err)
+		logger.Errorw("HTTP server error", err)
+		return
 	}
 }

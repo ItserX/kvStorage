@@ -3,67 +3,67 @@ package storage
 import (
 	"fmt"
 
+	"kvManager/internal/pkg/log"
+
 	"github.com/tarantool/go-tarantool/v2"
-	"go.uber.org/zap"
 )
 
 type TarantoolRepository struct {
-	conn   *tarantool.Connection
-	logger *zap.SugaredLogger
+	conn *tarantool.Connection
 }
 
-func NewTarantoolRepository(conn *tarantool.Connection, logger *zap.SugaredLogger) *TarantoolRepository {
-	return &TarantoolRepository{conn: conn, logger: logger}
+func NewTarantoolRepository(conn *tarantool.Connection) *TarantoolRepository {
+	return &TarantoolRepository{conn: conn}
 }
 
-func (repo *TarantoolRepository) execRequest(req tarantool.Request) ([]interface{}, error) {
+func (repo *TarantoolRepository) execRequest(req tarantool.Request) ([]any, error) {
 	future := repo.conn.Do(req)
 	data, err := future.Get()
 	if err != nil {
-		repo.logger.Warnw("Duplicate key error",
+		log.Logger.Warnw("Duplicate key error",
 			"error", err.Error())
 		return nil, err
 	}
 
-	repo.logger.Debugw("Tarantool response data",
+	log.Logger.Debugw("Tarantool response data",
 		"data_length", len(data),
 		"data", fmt.Sprintf("%s", data))
 
 	if len(data) == 0 {
-		repo.logger.Debugw("Empty response from Tarantool", "operation", "execRequest")
-		return nil, fmt.Errorf("%s", ErrKeyNotFound)
+		log.Logger.Debugw("Empty response from Tarantool", "operation", "execRequest")
+		return nil, ErrKeyNotFound
 	}
 
 	return data, nil
 }
 
-func (repo *TarantoolRepository) AddValue(key string, value interface{}) error {
-	repo.logger.Debugw("Adding value to Tarantool",
+func (repo *TarantoolRepository) AddValue(key string, value any) error {
+	log.Logger.Debugw("Adding value to Tarantool",
 		"key", key)
-	req := tarantool.NewInsertRequest(JsonDataSpace).Tuple([]interface{}{key, value})
+	req := tarantool.NewInsertRequest(JsonDataSpace).Tuple([]any{key, value})
 	_, err := repo.execRequest(req)
 	return err
 }
 
-func (repo *TarantoolRepository) GetValue(key string) ([]interface{}, error) {
-	repo.logger.Debugw("Get value from Tarantool",
+func (repo *TarantoolRepository) GetValue(key string) ([]any, error) {
+	log.Logger.Debugw("Get value from Tarantool",
 		"key", key)
-	req := tarantool.NewSelectRequest(JsonDataSpace).Index(PrimaryIndex).Key([]interface{}{key})
+	req := tarantool.NewSelectRequest(JsonDataSpace).Index(PrimaryIndex).Key([]any{key})
 	return repo.execRequest(req)
 }
 
-func (repo *TarantoolRepository) UpdateValue(key string, value interface{}) error {
-	repo.logger.Debugw("Update value in Tarantool",
+func (repo *TarantoolRepository) UpdateValue(key string, value any) error {
+	log.Logger.Debugw("Update value in Tarantool",
 		"key", key)
-	req := tarantool.NewUpdateRequest(JsonDataSpace).Index(PrimaryIndex).Key([]interface{}{key}).Operations(tarantool.NewOperations().Assign(1, value))
+	req := tarantool.NewUpdateRequest(JsonDataSpace).Index(PrimaryIndex).Key([]any{key}).Operations(tarantool.NewOperations().Assign(1, value))
 	_, err := repo.execRequest(req)
 	return err
 }
 
 func (repo *TarantoolRepository) DeleteValue(key string) error {
-	repo.logger.Debugw("Delete value from Tarantool",
+	log.Logger.Debugw("Delete value from Tarantool",
 		"key", key)
-	req := tarantool.NewDeleteRequest(JsonDataSpace).Index(PrimaryIndex).Key([]interface{}{key})
+	req := tarantool.NewDeleteRequest(JsonDataSpace).Index(PrimaryIndex).Key([]any{key})
 	_, err := repo.execRequest(req)
 	return err
 }

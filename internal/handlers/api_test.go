@@ -11,8 +11,6 @@ import (
 
 	"github.com/gorilla/mux"
 	"github.com/tarantool/go-tarantool/v2"
-	"go.uber.org/zap"
-	"go.uber.org/zap/zapcore"
 
 	"kvManager/internal/handlers"
 	"kvManager/internal/storage"
@@ -44,17 +42,8 @@ func TestAPIHandlers(t *testing.T) {
 		panic(err)
 	}
 
-	config := zap.NewDevelopmentConfig()
-	config.EncoderConfig.EncodeLevel = zapcore.CapitalColorLevelEncoder
-	config.DisableStacktrace = true
-
-	logger, _ := config.Build()
-	defer logger.Sync()
-
-	sugar := logger.Sugar()
-
-	repo := storage.NewTarantoolRepository(conn, sugar)
-	handler := handlers.Handler{Repo: repo, Logger: sugar}
+	repo := storage.NewTarantoolRepository(conn)
+	handler := handlers.Handler{Repo: repo}
 
 	router := mux.NewRouter()
 	router.HandleFunc("/kv", handler.Add).Methods("POST")

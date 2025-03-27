@@ -2,10 +2,12 @@ package handlers
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
 
+	"kvManager/internal/pkg/log"
 	"kvManager/internal/storage"
 )
 
@@ -19,14 +21,14 @@ type ResponseData struct {
 }
 
 func (handler *Handler) checkError(w http.ResponseWriter, err error) bool {
-	if err != nil && storage.ErrKeyNotFound.Error() == err.Error() {
+	if err != nil && errors.Is(err, storage.ErrKeyNotFound) {
 		http.Error(w, storage.ErrKeyNotFound.Error(), http.StatusNotFound)
-		handler.Logger.Warnw("Key not found error",
+		log.Logger.Warnw("Key not found error",
 			"http_status", http.StatusNotFound)
 		return true
 	}
 	if err != nil {
-		handler.Logger.Errorw("Internal server error",
+		log.Logger.Errorw("Internal server error",
 			"http_status", http.StatusInternalServerError)
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return true
@@ -34,21 +36,21 @@ func (handler *Handler) checkError(w http.ResponseWriter, err error) bool {
 	return false
 }
 
-func (handler *Handler) convertMap(oldMap map[interface{}]interface{}) (map[string]interface{}, error) {
-	newMap := make(map[string]interface{})
-	handler.Logger.Debugw("Starting map conversion", "map_size", len(oldMap))
+func (handler *Handler) convertMap(oldMap map[any]any) (map[string]any, error) {
+	newMap := make(map[string]any)
+	log.Logger.Debugw("Starting map conversion", "map_size", len(oldMap))
 	for key, val := range oldMap {
 		strKey, ok := key.(string)
 		if !ok {
-			handler.Logger.Errorw("Map conversion failed", "error", ErrKeyIsNotAString)
+			log.Logger.Errorw("Map conversion failed", "error", ErrKeyIsNotAString)
 			return nil, fmt.Errorf("%s", ErrKeyIsNotAString)
 		}
 
-		if nestedMap, ok := val.(map[interface{}]interface{}); ok {
-			handler.Logger.Debugw("Converting nested map", "key", strKey)
+		if nestedMap, ok := val.(map[any]any); ok {
+			log.Logger.Debugw("Converting nested map", "key", strKey)
 			convertedNested, err := handler.convertMap(nestedMap)
 			if err != nil {
-				handler.Logger.Errorw("Nested map conversion failed",
+				log.Logger.Errorw("Nested map conversion failed",
 					"key", strKey,
 					"error", err)
 				return nil, err
@@ -58,15 +60,15 @@ func (handler *Handler) convertMap(oldMap map[interface{}]interface{}) (map[stri
 			newMap[strKey] = val
 		}
 	}
-	handler.Logger.Debugw("Map conversion completed", "converted_size", len(newMap))
+	log.Logger.Debugw("Map conversion completed", "converted_size", len(newMap))
 	return newMap, nil
 
 }
 func (handler *Handler) parseReqBody(w http.ResponseWriter, r *http.Request) (*RequestData, bool) {
-	handler.Logger.Debugw("Parsing request body")
+	log.Logger.Debugw("Parsing request body")
 	body, err := io.ReadAll(r.Body)
 	if err != nil {
-		handler.Logger.Errorw("Failed to read request body",
+		log.Logger.Errorw("Failed to read request body",
 			"error", err,
 			"http_status", http.StatusInternalServerError)
 		http.Error(w, ErrReadReqBody, http.StatusInternalServerError)
@@ -77,14 +79,14 @@ func (handler *Handler) parseReqBody(w http.ResponseWriter, r *http.Request) (*R
 	var data RequestData
 	err = json.Unmarshal(body, &data)
 	if err != nil {
-		handler.Logger.Warnw("Failed to unmarshal request body",
+		log.Logger.Warnw("Failed to unmarshal request body",
 			"error", err,
 			"body", string(body),
 			"http_status", http.StatusBadRequest)
 		http.Error(w, ErrIncorrectBody, http.StatusBadRequest)
 		return nil, false
 	}
-	handler.Logger.Debugw("Request body parsed successfully",
+	log.Logger.Debugw("Request body parsed successfully",
 		"data_key", data.Key)
 	return &data, true
 }

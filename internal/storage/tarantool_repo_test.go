@@ -14,7 +14,7 @@ import (
 
 type Case struct {
 	Key           string
-	Value         interface{}
+	Value         any
 	Method        string
 	ExpectedError error
 }
@@ -43,13 +43,11 @@ func TestTarantoolRepo(t *testing.T) {
 	logger, _ := config.Build()
 	defer logger.Sync()
 
-	sugar := logger.Sugar()
-
-	repo := storage.NewTarantoolRepository(conn, sugar)
+	repo := storage.NewTarantoolRepository(conn)
 	cases := []Case{
-		{Key: "test", Value: map[string]interface{}{"v1": 1, "v2": true, "v3": "word"}, Method: "Add", ExpectedError: nil},
+		{Key: "test", Value: map[string]any{"v1": 1, "v2": true, "v3": "word"}, Method: "Add", ExpectedError: nil},
 		{Key: "test", Method: "Get", ExpectedError: nil},
-		{Key: "test", Value: []interface{}{1, 2, true}, Method: "Update", ExpectedError: nil},
+		{Key: "test", Value: []any{1, 2, true}, Method: "Update", ExpectedError: nil},
 		{Key: "test", Method: "Get", ExpectedError: nil},
 		{Key: "test", Method: "Delete", ExpectedError: nil},
 		{Key: "test", Method: "Get", ExpectedError: storage.ErrKeyNotFound},

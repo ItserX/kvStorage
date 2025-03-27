@@ -48,9 +48,9 @@ func (handler *Handler) Get(w http.ResponseWriter, r *http.Request) {
 
 	dataValue := data[0].([]any)[1]
 	if _, ok := dataValue.(map[any]any); ok {
-		dataValue, err = handler.convertMap(dataValue.(map[any]any))
 		log.Logger.Debugw("Try to converting map",
-			"map", dataValue)
+			"map", dataValue.(map[any]any))
+		dataValue, err = handler.convertMap(dataValue.(map[any]any))
 		if err != nil {
 			log.Logger.Errorw("Converting map failed", "data", dataValue,
 				"error", err.Error())

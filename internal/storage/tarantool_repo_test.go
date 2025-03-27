@@ -6,17 +6,17 @@ import (
 	"time"
 
 	"github.com/tarantool/go-tarantool/v2"
-	"go.uber.org/zap"
-	"go.uber.org/zap/zapcore"
 
+	"kvManager/internal/pkg/log"
 	"kvManager/internal/storage"
 )
 
 type Case struct {
-	Key           string
-	Value         any
-	Method        string
-	ExpectedError error
+	key           string
+	value         any
+	operation     func(string, any) error
+	method        string
+	expectedError error
 }
 
 func TestTarantoolRepo(t *testing.T) {
@@ -37,44 +37,78 @@ func TestTarantoolRepo(t *testing.T) {
 		t.Fatalf("Failed to connect: %v", err)
 	}
 
-	config := zap.NewDevelopmentConfig()
-	config.EncoderConfig.EncodeLevel = zapcore.CapitalColorLevelEncoder
-
-	logger, _ := config.Build()
-	defer logger.Sync()
-
+	err = log.SetupLogger()
+	if err != nil {
+		t.Errorf("failed to initialize logger: %v", err)
+		return
+	}
 	repo := storage.NewTarantoolRepository(conn)
 	cases := []Case{
-		{Key: "test", Value: map[string]any{"v1": 1, "v2": true, "v3": "word"}, Method: "Add", ExpectedError: nil},
-		{Key: "test", Method: "Get", ExpectedError: nil},
-		{Key: "test", Value: []any{1, 2, true}, Method: "Update", ExpectedError: nil},
-		{Key: "test", Method: "Get", ExpectedError: nil},
-		{Key: "test", Method: "Delete", ExpectedError: nil},
-		{Key: "test", Method: "Get", ExpectedError: storage.ErrKeyNotFound},
+		{
+			key:           "test",
+			value:         map[string]any{"v1": 1, "v2": true, "v3": "word"},
+			method:        "Add",
+			expectedError: nil,
+			operation:     repo.AddValue},
+
+		{
+			key:           "test",
+			method:        "Get",
+			expectedError: nil,
+			operation: func(key string, value any) error {
+				_, err := repo.GetValue(key)
+				return err
+			},
+		},
+
+		{
+			key:           "test",
+			value:         []any{1, 2, true},
+			method:        "Update",
+			expectedError: nil,
+			operation:     repo.UpdateValue,
+		},
+
+		{
+			key:           "test",
+			method:        "Get",
+			expectedError: nil,
+			operation: func(key string, value any) error {
+				_, err := repo.GetValue(key)
+				return err
+			},
+		},
+
+		{
+			key:           "test",
+			method:        "Delete",
+			expectedError: nil,
+			operation: func(key string, value any) error {
+				err := repo.DeleteValue(key)
+				return err
+			},
+		},
+
+		{
+			key:           "test",
+			method:        "Get",
+			expectedError: storage.ErrKeyNotFound,
+			operation: func(key string, value any) error {
+				_, err := repo.GetValue(key)
+				return err
+			},
+		},
 	}
 
 	for _, q := range cases {
-		t.Run(q.Key+" "+q.Method, func(t *testing.T) {
-			var err error
+		t.Run(q.key+" "+q.method, func(t *testing.T) {
+			err := q.operation(q.key, q.value)
 
-			switch q.Method {
-			case "Get":
-				_, err = repo.GetValue(q.Key)
-			case "Add":
-				err = repo.AddValue(q.Key, q.Value)
-			case "Update":
-				err = repo.UpdateValue(q.Key, q.Value)
-			case "Delete":
-				err = repo.DeleteValue(q.Key)
-			default:
-				t.Fatalf("Unknown method: %s", q.Method)
-			}
-
-			if q.ExpectedError != nil {
+			if q.expectedError != nil {
 				if err == nil {
 					t.Errorf("Expected error, got nil")
-				} else if err.Error() != q.ExpectedError.Error() {
-					t.Errorf("Expected error '%v', got '%v'", q.ExpectedError, err)
+				} else if err.Error() != q.expectedError.Error() {
+					t.Errorf("Expected error '%v', got '%v'", q.expectedError, err)
 				}
 			} else {
 				if err != nil {

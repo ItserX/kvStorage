@@ -1,3 +1,0 @@
-FROM tarantool/tarantool:3
-COPY app.lua /opt/tarantool
-CMD ["tarantool", "/opt/tarantool/app.lua"]

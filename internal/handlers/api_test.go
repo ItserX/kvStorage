@@ -2,17 +2,17 @@ package handlers_test
 
 import (
 	"bytes"
-	"context"
-	"fmt"
+	"errors"
 	"net/http"
 	"net/http/httptest"
 	"testing"
-	"time"
 
 	"github.com/gorilla/mux"
-	"github.com/tarantool/go-tarantool/v2"
+	"go.uber.org/mock/gomock"
 
 	"kvManager/internal/handlers"
+	"kvManager/internal/mocks"
+	"kvManager/internal/pkg/log"
 	"kvManager/internal/storage"
 )
 
@@ -24,26 +24,16 @@ type Case struct {
 }
 
 func TestAPIHandlers(t *testing.T) {
-
-	dialer := tarantool.NetDialer{
-		Address: ":3301",
-		User:    "guest",
-	}
-
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-	defer cancel()
-
-	opts := tarantool.Opts{
-		Timeout: 5 * time.Second,
-	}
-
-	conn, err := tarantool.Connect(ctx, dialer, opts)
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+	err := log.SetupLogger()
 	if err != nil {
-		panic(err)
+		t.Errorf("failed to initialize logger: %v", err)
+		return
 	}
+	mockRepo := mocks.NewMockKvRepository(ctrl)
 
-	repo := storage.NewTarantoolRepository(conn)
-	handler := handlers.Handler{Repo: repo}
+	handler := handlers.Handler{Repo: mockRepo}
 
 	router := mux.NewRouter()
 	router.HandleFunc("/kv", handler.Add).Methods("POST")
@@ -51,152 +41,118 @@ func TestAPIHandlers(t *testing.T) {
 	router.HandleFunc("/kv/{id}", handler.Update).Methods("PUT")
 	router.HandleFunc("/kv/{id}", handler.Delete).Methods("DELETE")
 
-	ts := httptest.NewServer(router)
-	defer ts.Close()
-
-	Cases := []Case{
+	testCases := []struct {
+		method         string
+		path           string
+		body           string
+		mockSetup      func()
+		expectedStatus int
+	}{
 		{
-			Path:           "/kv",
-			Body:           `{"key":"test1", "value":{"k1":123, "k2":true}}`,
-			Method:         "POST",
-			ExpectedStatus: http.StatusCreated,
+			method: "POST",
+			path:   "/kv",
+			body:   `{"key":"test1", "value":{"k1":123, "k2":true}}`,
+			mockSetup: func() {
+				mockRepo.EXPECT().
+					AddValue("test1", map[string]any{"k1": float64(123), "k2": true}).
+					Return(nil).
+					Times(1)
+			},
+			expectedStatus: http.StatusCreated,
 		},
 		{
-			Path:           "/kv",
-			Body:           `{"key": "test2", "value": [1, true, "word"]}`,
-			Method:         "POST",
-			ExpectedStatus: http.StatusCreated,
+			method: "POST",
+			path:   "/kv",
+			body:   `{"key":"test2", "value":{"k1":123}}`,
+			mockSetup: func() {
+				mockRepo.EXPECT().
+					AddValue("test2", gomock.Any()).
+					Return(errors.New(handlers.ErrKeyExists)).
+					Times(1)
+			},
+			expectedStatus: http.StatusConflict,
 		},
 		{
-			Path: "/kv",
-			Body: `{
-				  "key": "test3",
-				  "value": {
-					"user": {
-					  "id": 1,
-					  "profile": {
-						"name": "name",
-						"settings": {
-						  "theme": "dark",
-						  "notifications": {
-							"email": true,
-							"push": false
-						  }
-						}
-					  }
-					},
-					"system": {
-					  "version": "1.2.3",
-					  "dependencies": {
-						"db": "tarantool"
-					  }
-					}
-				  }
-				}`,
-			Method:         "POST",
-			ExpectedStatus: http.StatusCreated,
+			method: "GET",
+			path:   "/kv/test1",
+			mockSetup: func() {
+				mockRepo.EXPECT().
+					GetValue("test1").
+					Return([]any{[]any{"test1", map[string]any{"k1": 123}}}, nil).
+					Times(1)
+			},
+			expectedStatus: http.StatusOK,
 		},
 		{
-			Path:           "/kv",
-			Body:           `{"key": "test2", "value": [1, true, "word"]}`,
-			Method:         "POST",
-			ExpectedStatus: http.StatusConflict,
+			method: "GET",
+			path:   "/kv/non",
+			mockSetup: func() {
+				mockRepo.EXPECT().
+					GetValue("non").
+					Return(nil, storage.ErrKeyNotFound).
+					Times(1)
+			},
+			expectedStatus: http.StatusNotFound,
 		},
 		{
-			Path:           "/kv",
-			Body:           `{"key": "test4", {inccorect body}`,
-			Method:         "POST",
-			ExpectedStatus: http.StatusBadRequest,
-		},
-
-		{
-			Path:           "/kv/test1",
-			Method:         "GET",
-			ExpectedStatus: http.StatusOK,
-		},
-		{
-			Path:           "/kv/test1",
-			Body:           `{"value":"new_value"}`,
-			Method:         "PUT",
-			ExpectedStatus: http.StatusOK,
+			method: "PUT",
+			path:   "/kv/test1",
+			body:   `{"value":"new_value"}`,
+			mockSetup: func() {
+				mockRepo.EXPECT().
+					UpdateValue("test1", "new_value").
+					Return(nil).
+					Times(1)
+			},
+			expectedStatus: http.StatusOK,
 		},
 		{
-			Path:           "/kv/test1",
-			Body:           `incorrect_body`,
-			Method:         "PUT",
-			ExpectedStatus: http.StatusBadRequest,
+			method: "DELETE",
+			path:   "/kv/test1",
+			mockSetup: func() {
+				mockRepo.EXPECT().
+					DeleteValue("test1").
+					Return(nil).
+					Times(1)
+			},
+			expectedStatus: http.StatusNoContent,
 		},
 		{
-			Path:           "/kv/invalid",
-			Body:           `{"value":"new_value"}`,
-			Method:         "PUT",
-			ExpectedStatus: http.StatusNotFound,
-		},
-		{
-			Path:           "/kv/test1",
-			Method:         "DELETE",
-			ExpectedStatus: http.StatusNoContent,
-		},
-		{
-			Path:           "/kv/test1",
-			Method:         "DELETE",
-			ExpectedStatus: http.StatusNotFound,
-		},
-		{
-			Path:           "/kv/test2",
-			Method:         "DELETE",
-			ExpectedStatus: http.StatusNoContent,
-		},
-		{
-			Path:           "/kv/test3",
-			Method:         "DELETE",
-			ExpectedStatus: http.StatusNoContent,
-		},
-		{
-			Path:           "/kv/non",
-			Method:         "GET",
-			ExpectedStatus: http.StatusNotFound,
-		},
-		{
-			Path:           "/kv",
-			Body:           `incorrect_body`,
-			Method:         "POST",
-			ExpectedStatus: http.StatusBadRequest,
+			method: "POST",
+			path:   "/kv",
+			body:   `{"key": "	test4", {invalid}`,
+			mockSetup: func() {
+			},
+			expectedStatus: http.StatusBadRequest,
 		},
 	}
 
-	for idx, q := range Cases {
-		t.Run(q.Path, func(t *testing.T) {
-			url := ts.URL + q.Path
-
-			caseName := fmt.Sprintf("case %d: %s %s", idx, q.Method, q.Path)
+	for _, tc := range testCases {
+		t.Run(tc.method+" "+tc.path, func(t *testing.T) {
+			if tc.mockSetup != nil {
+				tc.mockSetup()
+			}
 
 			var req *http.Request
 			var err error
 
-			if q.Body != "" {
-				req, err = http.NewRequest(q.Method, url, bytes.NewBufferString(q.Body))
-				if err != nil {
-					t.Fatalf("[%s] error: %v", caseName, err)
-				}
+			if tc.body != "" {
+				req, err = http.NewRequest(tc.method, tc.path, bytes.NewBufferString(tc.body))
 				req.Header.Set("Content-Type", "application/json")
 			} else {
-				req, err = http.NewRequest(q.Method, url, nil)
-				if err != nil {
-					t.Fatalf("[%s] error: %v", caseName, err)
-				}
+				req, err = http.NewRequest(tc.method, tc.path, nil)
 			}
-
-			resp, err := http.DefaultClient.Do(req)
 			if err != nil {
-				t.Fatalf("[%s] error: %v", caseName, err)
-			}
-			defer resp.Body.Close()
-
-			if resp.StatusCode != q.ExpectedStatus {
-				t.Errorf("Expected status %d, got %d", q.ExpectedStatus, resp.StatusCode)
+				t.Fatalf("Failed to create request: %v", err)
 			}
 
+			rr := httptest.NewRecorder()
+
+			router.ServeHTTP(rr, req)
+
+			if rr.Code != tc.expectedStatus {
+				t.Errorf("Expected status %d, got %d", tc.expectedStatus, rr.Code)
+			}
 		})
 	}
 }

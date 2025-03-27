@@ -4,9 +4,11 @@ import (
 	"context"
 	"fmt"
 	"net/http"
+	"os"
 	"time"
 
 	"github.com/gorilla/mux"
+	"github.com/joho/godotenv"
 	tarantool "github.com/tarantool/go-tarantool/v2"
 	"go.uber.org/zap"
 
@@ -15,8 +17,16 @@ import (
 	"kvManager/internal/storage"
 )
 
-func connectToTarantool(addr string, user string, logger *zap.SugaredLogger) (*tarantool.Connection, error) {
-	logger.Infow("Connecting to Tarantool", "address", addr, "user", user)
+func loadEnv() error {
+	err := godotenv.Load()
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+func connectToTarantool(addr string, user string) (*tarantool.Connection, error) {
+	log.Logger.Infow("Connecting to Tarantool", "address", addr, "user", user)
 
 	dialer := tarantool.NetDialer{
 		Address: addr,
@@ -32,11 +42,11 @@ func connectToTarantool(addr string, user string, logger *zap.SugaredLogger) (*t
 
 	conn, err := tarantool.Connect(ctx, dialer, opts)
 	if err != nil {
-		logger.Errorw("Failed to connect to Tarantool", "error", err, "address", addr)
+		log.Logger.Errorw("Failed to connect to Tarantool", "error", err, "address", addr)
 		return nil, err
 	}
 
-	logger.Info("Successfully connected to Tarantool")
+	log.Logger.Info("Successfully connected to Tarantool")
 	return conn, nil
 }
 
@@ -57,24 +67,39 @@ func setupRouter(conn *tarantool.Connection, logger *zap.SugaredLogger) *mux.Rou
 }
 
 func main() {
-
 	err := log.SetupLogger()
 	if err != nil {
 		fmt.Printf("failed to initialize logger: %v", err)
 		return
 	}
 
+	err = loadEnv()
+	if err != nil {
+		log.Logger.Errorw("Env load failing")
+		return
+	}
+
+	appPort := os.Getenv("APP_PORT")
+	tarantoolAddr := os.Getenv("TARANTOOL_ADDRESS")
+	tarantoolUser := os.Getenv("TARANTOOL_USER")
+	fmt.Println(appPort)
 	log.Logger.Info("Starting app")
-	conn, err := connectToTarantool(":3301", "guest", log.Logger)
+	conn, err := connectToTarantool(tarantoolAddr, tarantoolUser)
 	if err != nil {
 		return
 	}
-	defer conn.Close()
+
+	defer func() {
+		err := conn.Close()
+		if err != nil {
+			log.Logger.Errorw("Connection to tarantool is not closed", err)
+		}
+	}()
 
 	r := setupRouter(conn, log.Logger)
 
-	log.Logger.Infow("Starting HTTP server", "address", ":8080")
-	err = http.ListenAndServe(":8080", r)
+	log.Logger.Infow("Starting HTTP server", "address", appPort)
+	err = http.ListenAndServe(appPort, r)
 	if err != nil {
 		log.Logger.Errorw("HTTP server error", err)
 		return

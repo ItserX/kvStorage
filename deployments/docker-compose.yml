@@ -1,8 +1,8 @@
 services:
   tarantool:
     build:
-      context: .
-      dockerfile: Dockerfile.db
+      context: ..
+      dockerfile: deployments/Dockerfile.db
     ports:
       - "3301:3301"
     networks:
@@ -10,15 +10,14 @@ services:
 
   app:
     build:
-      context: .
-      dockerfile: Dockerfile.app
+      context: ..
+      dockerfile: deployments/Dockerfile.app
     ports:
       - "8080:8080"
     depends_on:
       - tarantool
     networks:
       - app_net
-
 
 networks:
   app_net:

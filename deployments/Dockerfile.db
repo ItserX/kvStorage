@@ -1,0 +1,11 @@
+FROM tarantool/tarantool:3
+
+RUN mkdir -p /opt/tarantool
+
+COPY deployments/app.lua /opt/tarantool/
+
+WORKDIR /opt/tarantool
+
+EXPOSE 3301
+
+CMD ["tarantool", "/opt/tarantool/app.lua"]

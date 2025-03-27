@@ -74,7 +74,12 @@ func (handler *Handler) parseReqBody(w http.ResponseWriter, r *http.Request) (*R
 		http.Error(w, ErrReadReqBody, http.StatusInternalServerError)
 		return nil, false
 	}
-	defer r.Body.Close()
+	defer func() {
+		err := r.Body.Close()
+		if err != nil {
+			log.Logger.Warnw("Request body is not closed", err)
+		}
+	}()
 
 	var data RequestData
 	err = json.Unmarshal(body, &data)

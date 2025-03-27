@@ -33,7 +33,6 @@ func (repo *TarantoolRepository) execRequest(req tarantool.Request) ([]any, erro
 		log.Logger.Debugw("Empty response from Tarantool", "operation", "execRequest")
 		return nil, ErrKeyNotFound
 	}
-
 	return data, nil
 }
 

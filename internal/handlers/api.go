@@ -11,7 +11,7 @@ import (
 )
 
 type Handler struct {
-	Repo storage.TarantoolRepo
+	Repo storage.KvRepository
 }
 
 func (handler *Handler) Add(w http.ResponseWriter, r *http.Request) {

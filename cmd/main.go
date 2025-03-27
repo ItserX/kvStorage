@@ -82,7 +82,7 @@ func main() {
 	appPort := os.Getenv("APP_PORT")
 	tarantoolAddr := os.Getenv("TARANTOOL_ADDRESS")
 	tarantoolUser := os.Getenv("TARANTOOL_USER")
-	fmt.Println(appPort)
+
 	log.Logger.Info("Starting app")
 	conn, err := connectToTarantool(tarantoolAddr, tarantoolUser)
 	if err != nil {

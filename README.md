@@ -17,7 +17,7 @@ git clone https://github.com/ItserX/kvStorage.git
 cd kvStorage  
 docker compose -f deployments/docker-compose.yml up --build
 ```
-Or use a ready-made server:  
+**Production Server**:  
 http://217.198.5.83/
 
 **Run Tests**  

@@ -22,9 +22,9 @@ http://217.198.5.83/
 
 **Run Tests**  
 ```bash
-go test -cover ./internal/handlers/ ./internal/storage/  
--bash: ok      kvManager/internal/handlers     (cached)        coverage: 64.1% of statements  
-ok      kvManager/internal/storage      0.013s  coverage: 92.3% of statements  
+$ go test -cover ./internal/handlers/ ./internal/storage/  
+ok      kvManager/internal/handlers     0.006s          coverage: 64.1% of statements  
+ok      kvManager/internal/storage      0.013s          coverage: 92.3% of statements  
 ```
 **API Documentation**  
 Create Key-Value Pair  

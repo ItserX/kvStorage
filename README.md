@@ -1,5 +1,3 @@
-docker compose -f deployments/docker-compose.yml up --build запускать в корне проекта 
-
 **Project Overview**
 
 Simple HTTP service for managing key-value pairs with Tarantool as the storage backend.
@@ -10,8 +8,28 @@ Simple HTTP service for managing key-value pairs with Tarantool as the storage b
 3. Tarantool storage backend
 
 **Quick Start**
-1. Clone the repository  
-`git clone https://github.com/ItserX/kvStorage.git`
-2.  Start the services  
-`cd kvStorage`  
-`docker compose -f deployments/docker-compose.yml up --build`
+1. Clone the repository
+```bash
+git clone https://github.com/ItserX/kvStorage.git
+```  
+Or use a ready-made server:  
+http://217.198.5.83/
+
+2.Start the services
+```bash  
+cd kvStorage  
+docker compose -f deployments/docker-compose.yml up --build
+```
+
+**API Documentation**
+Create Key-Value Pair  
+`POST /kv {"key": "key1", "value": {"v1":1, "v2": true, "v3": [1,2,3,4,5]}
+Get Value by Key
+`GET /kv/{id}`  
+Update Value by key  
+`PUT /kv/{id} {"value": {"new_value": 1}}`  
+Delete Key  
+`DELETE /kv/{id}`
+
+**Run Tests**  
+`go test -cover ./internal/handlers/ ./internal/storage/`

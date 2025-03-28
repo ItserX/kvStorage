@@ -34,8 +34,10 @@ func TestTarantoolRepo(t *testing.T) {
 
 	conn, err := tarantool.Connect(ctx, dialer, opts)
 	if err != nil {
-		t.Fatalf("Failed to connect: %v", err)
+		t.Errorf("Failed to connect: %v", err)
+		return
 	}
+	defer conn.Close()
 
 	err = log.SetupLogger()
 	if err != nil {

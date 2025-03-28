@@ -20,17 +20,17 @@ docker compose -f deployments/docker-compose.yml up --build
 Or use a ready-made server:  
 http://217.198.5.83/
 
-**API Documentation**
+**API Documentation**  
 Create Key-Value Pair  
-`POST /kv {"key": "key1", "value": {"v1":1, "v2": true, "v3": [1,2,3,4,5]}`
-Get Value by Key
+`POST /kv {"key": "key1", "value": {"v1":1, "v2": true, "v3": [1,2,3,4,5]}`  
+Get Value by Key  
 `GET /kv/{id}`  
 Update Value by key  
 `PUT /kv/{id} {"value": {"new_value": 1}}`  
 Delete Key  
-`DELETE /kv/{id}`
+`DELETE /kv/{id}`  
 
 **Run Tests**  
 ```bash
-`go test -cover ./internal/handlers/ ./internal/storage/`
+go test -cover ./internal/handlers/ ./internal/storage/
 ```

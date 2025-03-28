@@ -12,6 +12,6 @@ Simple HTTP service for managing key-value pairs with Tarantool as the storage b
 **Quick Start**
 1. Clone the repository
 `git clone https://github.com/ItserX/kvStorage.git`
-2.  Start the services
-`cd kvStorage`
+2.  Start the services  
+`cd kvStorage`  
 `docker compose -f deployments/docker-compose.yml up --build`

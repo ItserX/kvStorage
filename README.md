@@ -10,7 +10,7 @@ Simple HTTP service for managing key-value pairs with Tarantool as the storage b
 3. Tarantool storage backend
 
 **Quick Start**
-1. Clone the repository
+1. Clone the repository  
 `git clone https://github.com/ItserX/kvStorage.git`
 2.  Start the services  
 `cd kvStorage`  

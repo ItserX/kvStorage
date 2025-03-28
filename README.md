@@ -22,7 +22,7 @@ http://217.198.5.83/
 
 **API Documentation**  
 Create Key-Value Pair  
-`POST /kv body: {"key": "key1", "value": {"v1":1, "v2": true, "v3": [1,2,3,4,5]}`  
+`POST /kv body: {"key": "key1", "value": {"v1":1, "v2": true, "v3": [1,2,3,4,5]}}`  
 
 Get Value by Key  
 `GET /kv/{id}`  

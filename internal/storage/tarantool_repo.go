@@ -2,10 +2,10 @@ package storage
 
 import (
 	"fmt"
+	
+	"github.com/tarantool/go-tarantool/v2"
 
 	"kvManager/internal/pkg/log"
-
-	"github.com/tarantool/go-tarantool/v2"
 )
 
 type TarantoolRepository struct {

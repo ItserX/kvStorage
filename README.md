@@ -20,6 +20,12 @@ docker compose -f deployments/docker-compose.yml up --build
 Or use a ready-made server:  
 http://217.198.5.83/
 
+**Run Tests**  
+```bash
+go test -cover ./internal/handlers/ ./internal/storage/  
+-bash: ok      kvManager/internal/handlers     (cached)        coverage: 64.1% of statements  
+ok      kvManager/internal/storage      0.013s  coverage: 92.3% of statements  
+```
 **API Documentation**  
 Create Key-Value Pair  
 `POST /kv body: {"key": "key1", "value": {"v1":1, "v2": true, "v3": [1,2,3,4,5]}}`  

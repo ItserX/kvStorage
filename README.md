@@ -30,7 +30,9 @@ Update Value by key
 Delete Key  
 `DELETE /kv/{id}`  
 
-**Run Tests**  
-```bash
-go test -cover ./internal/handlers/ ./internal/storage/
+**Configuration**
+```ini
+APP_PORT=:8080                    #HTTP server port  
+TARANTOOL_ADDRESS=tarantool:3301  #DB host:port
+TARANTOOL_USER=guest              #Authentication user
 ```

@@ -1,46 +1,44 @@
-**Project Overview**
+## gRPC PubSub Service
+A gRPC-based publish-subscribe service implementation using the subpub package.
 
-Simple HTTP service for managing key-value pairs with Tarantool as the storage backend.
+## Features
+  gRPC API for subscribing to and publishing events
+  Graceful shutdown
+  Dependency injection
+  Logging
+  Thread-safe message handling
 
-**Features**
-1. CRUD operations for key-value pairs
-2. HTTP REST API interface
-3. Tarantool storage backend
-
-**Quick Start**
-1. Clone the repository
+# Run directly
 ```bash
-git clone https://github.com/ItserX/kvStorage.git
-```  
-2.Start the services
-```bash  
-cd kvStorage  
-docker compose -f deployments/docker-compose.yml up --build
+go run cmd/server/main.go #run server
 ```
-**Production Server**: http://217.198.5.83/
+## Run with docker-compose
+```bash 
+docker-compose -f deployments/docker-compose.yml up --build
+```
 
-**Run Tests**  
+# Api Documentation
 ```bash
-$ go test -cover ./internal/handlers/ ./internal/storage/  
-ok      kvManager/internal/handlers     0.006s          coverage: 64.1% of statements  
-ok      kvManager/internal/storage      0.013s          coverage: 92.3% of statements  
+go run cmd/client/main.go -mode sub -key test-key # run client in subscriber mode
+go run cmd/client/main.go -mode pub -key test-key -message "Hello World!" # run client in publisher mode
+go run cmd/client/main.go -mode both -key test-key -message "Hello World!" # run in client subscriber and publisher mode
 ```
-**API Documentation**  
-Create Key-Value Pair  
-`POST /kv body: {"key": "key1", "value": {"v1":1, "v2": true, "v3": [1,2,3,4,5]}}`  
+## Flags
+    -addr: Server address (default: localhost:50051)
+    -mode: Client mode: sub, pub, or both (default: both)
+    -key: Subscription/publish key (default: test-key)
+    -message: Message to publish (default: Hello!)
 
-Get Value by Key  
-`GET /kv/{id}`  
-
-Update Value by key  
-`PUT /kv/{id} body: {"value": {"new_value": 1}}`  
-
-Delete Key  
-`DELETE /kv/{id}`  
-
-**Configuration**
-```ini
-APP_PORT=:8080                    #HTTP server port  
-TARANTOOL_ADDRESS=tarantool:3301  #DB host:port
-TARANTOOL_USER=guest              #Authentication user
+# Configuration
+```
+{
+    "server": {
+        "host": "0.0.0.0",
+        "port": "50051"
+    },
+    "log": {
+        "level": "info",
+        "file": "pubsub.log"
+    }
+}
 ```
